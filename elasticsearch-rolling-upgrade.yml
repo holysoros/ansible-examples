@@ -5,12 +5,7 @@
 
 ---
 - name: Elasticsearch rolling upgrade
-  # At Ekho, we use Amazon tags liberally to track production vs development
-  # as well as a tag that lists the Services each server hosts.
-  # Modify hosts to match your inventory group strategy.
-  # such as:
-  # hosts: tag_Services_elasticsearch:&tag_Environment_production
-  hosts: es
+  hosts: all
   serial: 1
 
   vars:
