@@ -5,7 +5,7 @@
 
 ---
 - name: Elasticsearch rolling upgrade
-  hosts: all
+  hosts: apm
   serial: 1
 
   vars:
@@ -14,7 +14,7 @@
     es_http_port: 9200
     es_transport_port: 9300
     # desired version to upgrade to:
-    es_version: 6.4.0
+    es_version: 6.5.0
 
   tasks:
       # this first step is a overkill, but here
@@ -45,29 +45,29 @@
       until: "response.json.status == 'green'"
       retries: 50
       delay: 30
-      when: version_found.json.version.number != '{{ es_version }}'
+      when: version_found.json.version.number !=  es_version
 
     - name: Disable shard allocation for the cluster
       uri: url=http://localhost:{{ es_http_port }}/_cluster/settings method=PUT body='{{ es_disable_allocation }}' body_format=json
-      when: version_found.json.version.number != '{{ es_version }}'
+      when: version_found.json.version.number != es_version
 
     - name: Shutdown elasticsearch service
       service: name=elasticsearch enabled=yes state=stopped
       become: true
 
     - name: Update elasticsearch
-      apt: deb=https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{{ es_version }}.deb
-      when: version_found.json.version.number != '{{ es_version }}'
+      apt: deb=/home/deployer/elasticsearch-{{ es_version }}.deb
+      when: version_found.json.version.number != es_version
       become: true
 
     - name: Start elasticsearch
       service: name=elasticsearch enabled=yes state=started
-      when: version_found.json.version.number != '{{ es_version }}'
+      when: version_found.json.version.number != es_version
       become: true
 
     - name: Wait for elasticsearch node to come back up
       wait_for: port={{ es_transport_port }} delay=35
-      when: version_found.json.version.number != '{{ es_version }}'
+      when: version_found.json.version.number != es_version
 
     - name: Confirm the node joins the cluster
       shell: "curl -s -m 2 'localhost:9200/_cat/nodes?h=name' | grep -E '^{{ansible_hostname}}$'"
@@ -75,7 +75,7 @@
       until: result.rc == 0
       retries: 200
       delay: 3
-      when: version_found.json.version.number != '{{ es_version }}'
+      when: version_found.json.version.number != es_version
 
     - name: Enable shard allocation for the cluster
       uri: url=http://localhost:{{ es_http_port }}/_cluster/settings method=PUT body='{{ es_enable_allocation }}' body_format=json
@@ -85,7 +85,7 @@
       until: "response.json.acknowledged == true"
       retries: 5
       delay: 30
-      when: version_found.json.version.number != '{{ es_version }}'
+      when: version_found.json.version.number != es_version
 
     - name: Wait for cluster health to return to yellow or green
       uri: url=http://localhost:{{ es_http_port }}/_cluster/health method=GET
@@ -93,5 +93,5 @@
       until: "response.json.status == 'yellow' or response.json.status == 'green'"
       retries: 5
       delay: 30
-      when: version_found.json.version.number != '{{ es_version }}'
+      when: version_found.json.version.number != es_version
 
